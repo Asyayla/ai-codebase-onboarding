@@ -1,12 +1,3 @@
-"""
-Unit tests for tests/fakes/fake_chunk_store.py.
-
-All tests are pure/offline - no network, no disk I/O. Tests the observable
-ChunkStore contract (save_chunks, get_chunk_hashes, delete_chunks,
-delete_repository), plus the fake's test-only inspection helper
-(get_stored_chunk), not private implementation details.
-"""
-
 from app.embedding.models import EmbeddedChunk
 from app.persistence.content_hash import compute_content_hash
 from tests.fakes.fake_chunk_store import FakeChunkStore
@@ -28,7 +19,7 @@ def _make_embedded_chunk(
 ) -> EmbeddedChunk:
     return EmbeddedChunk(
         chunk_id=chunk_id,
-        repository_id="unused-embedded-chunk-field",  # not read by the store; repository_id is passed separately to save_chunks
+        repository_id="unused-embedded-chunk-field",
         file_path=file_path,
         language=language,
         symbol_type=symbol_type,
@@ -109,7 +100,6 @@ def test_saving_an_existing_chunk_id_replaces_the_stored_record():
 
     stored = store.get_stored_chunk("repo-1", "chunk-1")
     assert stored.content == "updated content"
-    # Exactly one record remains for this chunk_id, not two.
     assert len(store.get_chunk_hashes("repo-1")) == 1
 
 
@@ -147,13 +137,14 @@ def test_deleting_a_nonexistent_chunk_id_is_a_no_op():
 
     store.delete_chunks("repo-1", ["chunk-does-not-exist"])
 
-    assert store.get_chunk_hashes("repo-1") == {"chunk-1": compute_content_hash(chunk.content)}
+    assert store.get_chunk_hashes("repo-1") == {
+        "chunk-1": compute_content_hash(chunk.content)
+    }
 
 
 def test_deleting_from_an_unknown_repository_is_a_no_op():
     store = FakeChunkStore()
 
-    # Should not raise, even though "repo-that-never-existed" was never saved to.
     store.delete_chunks("repo-that-never-existed", ["chunk-1"])
 
     assert store.get_chunk_hashes("repo-that-never-existed") == {}
@@ -178,8 +169,14 @@ def test_unknown_repository_returns_empty_dict():
 
 def test_repositories_are_fully_isolated():
     store = FakeChunkStore()
-    chunk_repo_one = _make_embedded_chunk(chunk_id="shared-id", content="repo one content")
-    chunk_repo_two = _make_embedded_chunk(chunk_id="shared-id", content="repo two content")
+    chunk_repo_one = _make_embedded_chunk(
+        chunk_id="shared-id",
+        content="repo one content",
+    )
+    chunk_repo_two = _make_embedded_chunk(
+        chunk_id="shared-id",
+        content="repo two content",
+    )
 
     store.save_chunks("repo-1", [chunk_repo_one])
     store.save_chunks("repo-2", [chunk_repo_two])

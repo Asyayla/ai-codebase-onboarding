@@ -1,14 +1,3 @@
-"""
-Unit tests for app/embedding/embedding_service.py.
-
-All tests are offline. Chunk objects are constructed directly (not via the
-real parser/chunker - this service only depends on Chunk's field shape).
-Failure-path tests use small, single-purpose provider doubles defined
-locally in this file, per the approved Phase 3C design - the shared
-FakeEmbeddingProvider in tests/fakes/ is used unchanged for every
-success-path test and is never modified here.
-"""
-
 from typing import List
 
 import pytest

@@ -1,15 +1,3 @@
-"""
-test_retriever.py
-
-Tests for app.retrieval.retriever.Retriever.
-
-Uses small, local test doubles rather than the existing
-tests/fakes/fake_embedding_provider.FakeEmbeddingProvider, because several
-required tests here need to assert on exact call arguments and to inject
-specific failures/invalid shapes - behavior the existing fake does not
-expose and which it should not be modified to add.
-"""
-
 from __future__ import annotations
 
 from typing import List, Optional
@@ -22,9 +10,7 @@ from app.retrieval.retriever import Retriever
 
 
 class _RecordingEmbeddingProvider:
-    """Test-only EmbeddingProvider double. Records the texts it was
-    called with and returns a preconfigured list of vectors, or raises a
-    preconfigured exception instead."""
+    """Test-only EmbeddingProvider double."""
 
     def __init__(
         self,
@@ -33,7 +19,9 @@ class _RecordingEmbeddingProvider:
         model_name: str = "test-embedding-model",
         raise_error: Optional[Exception] = None,
     ) -> None:
-        self._vectors_to_return = vectors_to_return if vectors_to_return is not None else []
+        self._vectors_to_return = (
+            vectors_to_return if vectors_to_return is not None else []
+        )
         self._dimensions = dimensions
         self._model_name = model_name
         self._raise_error = raise_error
@@ -55,16 +43,16 @@ class _RecordingEmbeddingProvider:
 
 
 class _RecordingVectorStore:
-    """Test-only VectorStore double. Records the exact arguments it was
-    called with and returns a preconfigured list of results, or raises a
-    preconfigured exception instead."""
+    """Test-only VectorStore double."""
 
     def __init__(
         self,
         results_to_return: Optional[List[RetrievedChunk]] = None,
         raise_error: Optional[Exception] = None,
     ) -> None:
-        self._results_to_return = results_to_return if results_to_return is not None else []
+        self._results_to_return = (
+            results_to_return if results_to_return is not None else []
+        )
         self._raise_error = raise_error
         self.received_call = None
 
@@ -171,7 +159,6 @@ def test_provider_returning_zero_vectors_is_rejected():
     with pytest.raises(ValueError):
         retriever.retrieve("repo-1", "find the parser")
 
-    # The vector store must never be called with a malformed embedding.
     assert vector_store.received_call is None
 
 
@@ -216,7 +203,9 @@ def test_vector_store_results_are_returned_unchanged():
 
 
 def test_provider_failure_propagates():
-    provider = _RecordingEmbeddingProvider(raise_error=RuntimeError("provider exploded"))
+    provider = _RecordingEmbeddingProvider(
+        raise_error=RuntimeError("provider exploded")
+    )
     vector_store = _RecordingVectorStore()
     retriever = Retriever(provider, vector_store)
 
@@ -226,7 +215,9 @@ def test_provider_failure_propagates():
 
 def test_vector_store_failure_propagates():
     provider = _RecordingEmbeddingProvider(vectors_to_return=[[1.0, 0.0, 0.0]])
-    vector_store = _RecordingVectorStore(raise_error=RuntimeError("store exploded"))
+    vector_store = _RecordingVectorStore(
+        raise_error=RuntimeError("store exploded")
+    )
     retriever = Retriever(provider, vector_store)
 
     with pytest.raises(RuntimeError, match="store exploded"):

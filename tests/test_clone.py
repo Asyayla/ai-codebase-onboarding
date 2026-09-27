@@ -1,10 +1,3 @@
-"""
-Unit tests for app/ingestion/clone.py.
-
-All tests clone from real, local git repositories built on the fly inside
-pytest's tmp_path fixture. No network requests are made in this suite.
-"""
-
 import subprocess
 from pathlib import Path
 
@@ -15,8 +8,6 @@ from app.ingestion.clone import RepositoryCloneError, clone_repository
 
 
 def _run_git(args, cwd):
-    """Run a git command and fail loudly (via assert) if it doesn't succeed.
-    This is test-fixture plumbing, not the code under test."""
     result = subprocess.run(
         ["git", *args],
         cwd=cwd,
@@ -30,9 +21,6 @@ def _run_git(args, cwd):
 
 @pytest.fixture
 def local_git_repo(tmp_path: Path) -> Path:
-    """Build a real local git repository with two commits, so shallow
-    cloning (--depth 1) can be verified against a known, non-trivial
-    history."""
     repo_dir = tmp_path / "fixture_repo"
     repo_dir.mkdir()
 
@@ -90,8 +78,7 @@ def test_clone_is_shallow_with_exactly_one_commit(local_git_repo: Path):
     )
 
     assert result.returncode == 0
-    # The fixture repo has TWO commits; if --depth 1 is actually working,
-    # the clone destination only has ONE, regardless of the source history.
+    # The source has two commits; a depth-1 clone should have one.
     assert result.stdout.strip() == "1"
 
 
@@ -115,11 +102,10 @@ def test_two_clones_produce_different_destinations(local_git_repo: Path):
     assert destination_two.exists()
 
 
-def test_failed_clone_removes_partial_temp_directory(tmp_path: Path, monkeypatch):
-    """A failed clone should not leave its freshly created temp directory
-    behind. We spy on tempfile.mkdtemp (as used inside clone_module) to
-    capture the exact path it created, then confirm it no longer exists
-    after the failure."""
+def test_failed_clone_removes_partial_temp_directory(
+    tmp_path: Path,
+    monkeypatch,
+):
     created_dirs = []
     original_mkdtemp = clone_module.tempfile.mkdtemp
 

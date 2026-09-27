@@ -1,13 +1,3 @@
-"""
-Unit tests for app/chunking/python_chunker.py.
-
-All fixtures are small Python source strings, parsed with the real
-parse_python_file (never a hand-built ParsedFile), then passed into
-chunk_python_file - exercising the actual parser/chunker boundary rather
-than a mocked one. No disk files, no network, matching the existing test
-style in this project.
-"""
-
 import textwrap
 
 from app.chunking.python_chunker import chunk_python_file
@@ -15,8 +5,7 @@ from app.parsing.python_parser import parse_python_file
 
 
 def _source(text: str) -> str:
-    """Dedent a triple-quoted fixture so indentation in the test file
-    itself doesn't leak into the Python source being parsed."""
+    """Dedent a triple-quoted fixture before parsing."""
     return textwrap.dedent(text).lstrip("\n")
 
 
@@ -74,7 +63,6 @@ def test_class_with_multiple_methods_produces_class_and_method_chunks():
     for method_chunk in method_chunks:
         assert method_chunk.parent_symbol_name == "Greeter"
 
-    # No separate top-level function chunks - methods are not functions.
     assert [c for c in chunks if c.symbol_type == "function"] == []
 
 
@@ -118,16 +106,11 @@ def test_function_with_trailing_module_level_code_produces_two_chunks():
     assert len(module_chunks) == 1
     module_chunk = module_chunks[0]
     assert module_chunk.symbol_name == "<module>"
-    # The complement region starts at line 3 (the blank line separating the
-    # function from the trailing block) and ends at line 5. The blank line
-    # is not "meaningful" on its own, but it IS part of the uncovered
-    # region, so it is preserved in the module chunk's content rather than
-    # stripped out - only its presence/absence doesn't affect whether a
-    # module chunk gets emitted at all.
+
+    # The module region can include uncovered blank lines.
     assert module_chunk.start_line == 3
     assert module_chunk.end_line == 5
     assert module_chunk.content == '\nif __name__ == "__main__":\n    main()'
-    # The function's own lines must not leak into the module chunk.
     assert "def main" not in module_chunk.content
 
 
@@ -180,7 +163,7 @@ def test_module_docstring_only_file_produces_one_module_chunk():
 def test_parse_errors_produce_zero_chunks_with_no_fallback():
     source = "def broken(:\n    pass\n"
     parsed = parse_python_file(source, "broken.py")
-    assert parsed.parse_errors != []  # sanity check on the parser's own behavior
+    assert parsed.parse_errors != []
 
     chunks = chunk_python_file(parsed, source)
 
@@ -207,15 +190,10 @@ def test_content_is_sliced_exactly_from_source_lines():
 
     for chunk in chunks:
         if chunk.symbol_type == "module":
-            # The module chunk's covered region can be non-contiguous (here:
-            # a blank line after the import, and a blank line between the
-            # function and the class, with the function/class lines
-            # excluded in between). Its content is reconstructed from only
-            # the actual uncovered line numbers, not a single contiguous
-            # start:end slice - a plain lines[start-1:end] slice would
-            # incorrectly include the function/class source text that
-            # falls between the first and last uncovered line.
+            # Module content is reconstructed from uncovered line numbers
+            # because its region can be non-contiguous.
             continue
+
         expected = "\n".join(lines[chunk.start_line - 1:chunk.end_line])
         assert chunk.content == expected
 
@@ -238,10 +216,6 @@ def test_module_chunk_content_excludes_lines_covered_by_functions_or_classes():
     chunks = _chunk(source)
     module_chunk = next(c for c in chunks if c.symbol_type == "module")
 
-    # "import os" and the surrounding blank lines are module-level; the
-    # function and class bodies must not appear inside this chunk's
-    # content, even though they fall between the module chunk's own
-    # start_line and end_line.
     assert "import os" in module_chunk.content
     assert "def foo" not in module_chunk.content
     assert "class Bar" not in module_chunk.content
@@ -262,9 +236,8 @@ def test_nested_function_is_not_a_separate_chunk():
     assert len(chunks) == 1
     assert chunks[0].symbol_type == "function"
     assert chunks[0].symbol_name == "outer"
-    # The nested function's source text is part of the outer chunk's
-    # content, since the current parser does not extract nested functions
-    # as their own symbols.
+
+    # Nested functions are currently kept inside the outer function chunk.
     assert "def inner" in chunks[0].content
     assert chunks[0].start_line == 1
     assert chunks[0].end_line == 4

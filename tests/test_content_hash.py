@@ -1,9 +1,3 @@
-"""
-Unit tests for app/persistence/content_hash.py.
-
-All tests are pure/offline - no network, no disk I/O.
-"""
-
 import hashlib
 import re
 
@@ -47,7 +41,7 @@ def test_result_is_a_valid_hex_sha256_digest():
 
 
 def test_matches_exact_sha256_of_utf8_encoded_content():
-    content = "some content with unicode: caf\u00e9"
+    content = "some content with unicode: café"
 
     expected = hashlib.sha256(content.encode("utf-8")).hexdigest()
 
@@ -55,9 +49,7 @@ def test_matches_exact_sha256_of_utf8_encoded_content():
 
 
 def test_content_is_not_normalized_before_hashing():
-    """Whitespace/casing differences are real content differences -
-    compute_content_hash must not strip, lowercase, or otherwise alter
-    content before hashing."""
+    # Whitespace and casing differences must remain hash-significant.
     assert compute_content_hash("foo") != compute_content_hash("Foo")
     assert compute_content_hash("foo") != compute_content_hash(" foo")
     assert compute_content_hash("foo") != compute_content_hash("foo\n")

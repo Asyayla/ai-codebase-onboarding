@@ -1,11 +1,3 @@
-"""
-test_vector_store.py
-
-Tests for app.retrieval.vector_store.FakeVectorStore, which also serves
-as the reference behavioral test for anything implementing the
-VectorStore Protocol.
-"""
-
 from __future__ import annotations
 
 from typing import List, Optional
@@ -55,7 +47,6 @@ def test_results_ranked_by_descending_cosine_similarity():
     exact_match = _make_stored_chunk("exact", embedding=[1.0, 0.0, 0.0])
     partial_match = _make_stored_chunk("partial", embedding=[0.7071, 0.7071, 0.0])
     orthogonal = _make_stored_chunk("orthogonal", embedding=[0.0, 1.0, 0.0])
-    # Inserted deliberately out of expected-similarity order.
     store.add_chunks([orthogonal, exact_match, partial_match])
 
     results = store.search("repo-1", [1.0, 0.0, 0.0], top_k=3)
@@ -162,11 +153,13 @@ def test_rank_values_are_correct_and_sequential():
 
 def test_tie_breaking_is_deterministic_by_insertion_order():
     store = FakeVectorStore()
-    # Both chunks have identical embeddings, so they receive identical
-    # similarity scores against any query - the tie must break by
-    # insertion order, not arbitrarily.
-    store.add_chunk(_make_stored_chunk("inserted-first", embedding=[1.0, 0.0, 0.0]))
-    store.add_chunk(_make_stored_chunk("inserted-second", embedding=[1.0, 0.0, 0.0]))
+    # Equal scores should preserve insertion order.
+    store.add_chunk(
+        _make_stored_chunk("inserted-first", embedding=[1.0, 0.0, 0.0])
+    )
+    store.add_chunk(
+        _make_stored_chunk("inserted-second", embedding=[1.0, 0.0, 0.0])
+    )
 
     results = store.search("repo-1", [1.0, 0.0, 0.0], top_k=5)
 
@@ -176,8 +169,6 @@ def test_tie_breaking_is_deterministic_by_insertion_order():
     ]
     assert results[0].score == results[1].score
 
-    # Repeated searches remain identically ordered - determinism, not a
-    # one-off coincidence of dict/list iteration.
     repeated_results = store.search("repo-1", [1.0, 0.0, 0.0], top_k=5)
     assert [result.stored_chunk.chunk_id for result in repeated_results] == [
         "inserted-first",

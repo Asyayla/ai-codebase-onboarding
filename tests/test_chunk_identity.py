@@ -1,10 +1,3 @@
-"""
-Unit tests for app/embedding/chunk_identity.py.
-
-All tests are pure/offline - no network, no disk I/O, matching the
-existing test style in this project.
-"""
-
 import re
 
 from app.embedding.chunk_identity import compute_chunk_id
@@ -38,7 +31,9 @@ def test_output_is_a_valid_stable_hex_sha256_digest():
 
     assert isinstance(result, str)
     assert len(result) == 64
-    assert _HEX_SHA256_PATTERN.match(result), f"not a lowercase hex sha256 digest: {result!r}"
+    assert _HEX_SHA256_PATTERN.match(
+        result
+    ), f"not a lowercase hex sha256 digest: {result!r}"
 
 
 def test_changing_repository_id_changes_the_id():
@@ -66,21 +61,11 @@ def test_changing_end_line_changes_the_id():
 
 
 def test_content_is_not_an_input_and_therefore_cannot_affect_the_id():
-    """compute_chunk_id() has no `content` parameter at all - this is the
-    design itself, not just a test of it. Two chunks with identical
-    identity (repository, file, symbol, location) but that would have held
-    completely different source text must resolve to the same chunk_id,
-    because content is never part of what's hashed. This test documents
-    that guarantee by computing the ID twice for the same identity and
-    confirming there is no way for "content" to have entered the
-    computation in the first place - there is no parameter for it."""
     same_identity_id_one = _id()
     same_identity_id_two = _id()
 
     assert same_identity_id_one == same_identity_id_two
-    # There is no `content` argument accepted by compute_chunk_id at all -
-    # attempting to pass one would be a TypeError, which is itself the
-    # strongest guarantee that content cannot influence the result.
+
     import inspect
 
     signature = inspect.signature(compute_chunk_id)
@@ -117,13 +102,7 @@ def test_different_chunks_produce_different_ids():
 
 
 def test_field_boundary_shift_does_not_collide():
-    """Guards the canonicalization scheme itself: without length-prefixing,
-    a plain delimiter-joined string could let two different field splits
-    produce the same serialized text (e.g. "ab" + "c" vs "a" + "bc" under
-    naive concatenation, or values that happen to contain the delimiter
-    character). This test picks values specifically designed to collide
-    under naive concatenation or naive single-character-delimiter joining,
-    and confirms compute_chunk_id still tells them apart."""
+    # Length-prefixing keeps different field boundaries distinguishable.
     id_one = compute_chunk_id(
         repository_id="repo",
         file_path="a|b",

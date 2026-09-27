@@ -1,10 +1,3 @@
-"""
-Unit tests for tests/fakes/fake_embedding_provider.py.
-
-All tests are pure/offline - no network, no disk I/O, matching the
-existing test style in this project.
-"""
-
 from typing import List
 
 import pytest
@@ -27,8 +20,6 @@ def test_output_order_matches_input_order():
     result_ab = provider.embed_batch(["alpha", "beta"])
     result_ba = provider.embed_batch(["beta", "alpha"])
 
-    # Same two texts, opposite order -> outputs must mirror that order,
-    # not just contain the same set of vectors.
     assert result_ab[0] == result_ba[1]
     assert result_ab[1] == result_ba[0]
 
@@ -101,8 +92,6 @@ def test_received_batches_preserves_batch_boundaries():
     provider.embed_batch(["a", "b", "c"])
     provider.embed_batch(["d"])
 
-    # Two separate batches of sizes 3 and 1 - NOT flattened into one list
-    # of four texts.
     assert len(provider.received_batches) == 2
     assert provider.received_batches[0] == ["a", "b", "c"]
     assert provider.received_batches[1] == ["d"]
@@ -142,21 +131,20 @@ def test_negative_dimensions_raises_value_error():
         FakeEmbeddingProvider(dimensions=-1)
 
 
-def _embed_via_protocol_typed_parameter(provider: EmbeddingProvider, texts: List[str]) -> List[List[float]]:
-    """Exercises a FakeEmbeddingProvider exactly the way real application
-    code would use any EmbeddingProvider: through a parameter typed as the
-    Protocol itself, calling only the methods/properties the Protocol
-    defines. This is a structural-compatibility check via normal usage,
-    not isinstance() - EmbeddingProvider is intentionally not
-    @runtime_checkable, so isinstance() against it is not used here or
-    anywhere else in this test file."""
+def _embed_via_protocol_typed_parameter(
+    provider: EmbeddingProvider,
+    texts: List[str],
+) -> List[List[float]]:
     _ = provider.model_name
     _ = provider.dimensions
     return provider.embed_batch(texts)
 
 
 def test_fake_provider_is_usable_wherever_an_embedding_provider_is_expected():
-    provider = FakeEmbeddingProvider(dimensions=4, model_name="protocol-check-model")
+    provider = FakeEmbeddingProvider(
+        dimensions=4,
+        model_name="protocol-check-model",
+    )
 
     result = _embed_via_protocol_typed_parameter(provider, ["some text"])
 

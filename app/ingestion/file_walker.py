@@ -1,32 +1,3 @@
-"""
-file_walker.py
-
-Responsibility:
-    Given a repository root directory already present on local disk, recursively
-    discover the set of files that are worth analyzing (source code, and a small
-    set of high-value project/config/doc files), while excluding noise:
-    dependency directories, build artifacts, VCS internals, symlinks, oversized
-    files, and unrecognized/binary content.
-
-    This module does NOT clone repositories, does NOT parse file content, and
-    does NOT know anything about ASTs. It is a pure, dependency-free filesystem
-    filter that later ingestion stages (parsing, chunking) build on top of.
-
-Contract:
-    walk_repository(root) -> List[Path]
-
-    - root must be an existing local directory.
-    - Returned paths are RELATIVE to root.
-    - The returned list is sorted (by POSIX-style relative path string), so the
-      same directory tree always produces the same ordered output, regardless
-      of OS or filesystem iteration order.
-    - Symlinks (files or directories) are never followed or included.
-    - Files above max_file_size_bytes are excluded.
-    - Only files matching a known source-code extension, or a known
-      config/doc filename, are included (allow-list approach - anything not
-      explicitly recognized, including binaries, is excluded by default).
-"""
-
 from __future__ import annotations
 
 import os
@@ -87,12 +58,15 @@ DEFAULT_MAX_FILE_SIZE_BYTES: int = 500_000
 def _build_allowed_extensions(
     extra_allowed_extensions: Optional[Set[str]] = None,
 ) -> Set[str]:
+    """Build the allow-list of recognized file extensions."""
     allowed: Set[str] = set()
     for ext_set in LANGUAGE_EXTENSIONS.values():
         allowed |= ext_set
     allowed |= DOCUMENTATION_EXTENSIONS
+
     if extra_allowed_extensions:
         allowed |= extra_allowed_extensions
+
     return allowed
 
 
@@ -117,6 +91,7 @@ def walk_repository(
     extra_excluded_dirs: Optional[Set[str]] = None,
     extra_allowed_extensions: Optional[Set[str]] = None,
 ) -> List[Path]:
+    """Return relevant repository files as sorted paths relative to root."""
     root_path = Path(root)
     if not root_path.is_dir():
         raise NotADirectoryError(f"root is not a directory: {root_path}")

@@ -1,15 +1,8 @@
-"""
-Unit tests for app/ingestion/file_walker.py.
-
-All tests build temporary directory structures on disk (via pytest's tmp_path
-fixture) rather than relying on any real, external repository.
-"""
-
 from pathlib import Path
 
 import pytest
 
-from app.ingestion.file_walker import walk_repository, DEFAULT_MAX_FILE_SIZE_BYTES
+from app.ingestion.file_walker import DEFAULT_MAX_FILE_SIZE_BYTES, walk_repository
 
 
 def _write(path: Path, content: str = "content") -> None:
@@ -192,5 +185,6 @@ def test_extensible_via_extra_excluded_dirs(tmp_path: Path):
 
 def test_raises_on_nonexistent_root(tmp_path: Path):
     missing = tmp_path / "does_not_exist"
+
     with pytest.raises(NotADirectoryError):
         walk_repository(missing)

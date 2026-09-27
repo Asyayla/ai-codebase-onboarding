@@ -1,11 +1,3 @@
-"""
-Unit tests for app/ingestion/repository_identity.py.
-
-All tests are pure/offline - no network, no git calls. Local-path tests
-use pytest's tmp_path fixture and monkeypatch.chdir, matching the existing
-test style in this project.
-"""
-
 from pathlib import Path
 
 from app.ingestion.repository_identity import compute_repository_id
@@ -44,9 +36,7 @@ def test_hostname_casing_is_normalized():
 
 
 def test_repository_path_casing_is_preserved():
-    """Only scheme and host are case-normalized - the repository path
-    itself is case-sensitive on real hosting providers and must not be
-    altered."""
+    # Only scheme and host are normalized; repository paths can be case-sensitive.
     result = compute_repository_id("https://github.com/OctoCat/Hello-World")
 
     assert result == "https://github.com/OctoCat/Hello-World"
@@ -66,7 +56,10 @@ def test_equivalent_remote_url_forms_produce_the_same_id():
     assert len(resolved_ids) == 1
 
 
-def test_relative_and_absolute_local_paths_resolve_to_the_same_id(tmp_path: Path, monkeypatch):
+def test_relative_and_absolute_local_paths_resolve_to_the_same_id(
+    tmp_path: Path,
+    monkeypatch,
+):
     repo_dir = tmp_path / "my_repo"
     repo_dir.mkdir()
 
@@ -78,7 +71,10 @@ def test_relative_and_absolute_local_paths_resolve_to_the_same_id(tmp_path: Path
     assert from_relative == from_absolute
 
 
-def test_local_path_resolves_to_an_absolute_path(tmp_path: Path, monkeypatch):
+def test_local_path_resolves_to_an_absolute_path(
+    tmp_path: Path,
+    monkeypatch,
+):
     repo_dir = tmp_path / "my_repo"
     repo_dir.mkdir()
     monkeypatch.chdir(tmp_path)

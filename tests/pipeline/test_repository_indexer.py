@@ -1,19 +1,3 @@
-"""
-test_repository_indexer.py
-
-Tests for app.pipeline.repository_indexer.RepositoryIndexer.
-
-These tests exercise the orchestrator against small, local git
-repositories (created on the fly under tmp_path) rather than any real
-remote - clone_repository already supports cloning from a local path
-(see clone.py's --no-local design note), so no network access or mocking
-of the ingestion layer is needed.
-
-Only the two genuinely external dependencies - the embedding provider and
-the chunk store - are faked. Everything else (git, the filesystem,
-parsing, chunking) runs for real, exercising the real integration.
-"""
-
 from __future__ import annotations
 
 import subprocess

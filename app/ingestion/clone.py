@@ -1,30 +1,3 @@
-"""
-clone.py
-
-Responsibility:
-    Given a source that git understands (a remote URL or a local filesystem
-    path to a git repository), produce a shallow local clone in a freshly
-    created temporary directory and return its path.
-
-    This module does NOT validate the source (e.g. restricting to
-    github.com), does NOT walk the resulting file tree, and does NOT manage
-    the lifecycle/retention of the returned directory beyond removing it if
-    the clone itself fails partway through. Cleanup of successful clones is
-    the responsibility of a later lifecycle layer, not this module.
-
-Contract:
-    clone_repository(source: str) -> Path
-
-    - Creates a new temporary directory via tempfile.mkdtemp.
-    - Runs git clone --depth 1 --no-tags --no-local <source> <destination>
-      using subprocess.run with an explicit argument list (never shell=True).
-    - On success, returns the destination Path. The directory is left in
-      place; nothing in this module deletes a successful clone.
-    - On failure (non-zero git exit code, or git executable not found),
-      raises RepositoryCloneError with the underlying failure details, and
-      removes the (empty or partial) temporary directory it created.
-"""
-
 from __future__ import annotations
 
 import shutil
@@ -34,37 +7,19 @@ from pathlib import Path
 
 
 class RepositoryCloneError(Exception):
-    """Raised when git clone fails for any reason: an invalid or
-    unreachable source, a non-zero git exit code, or the git executable
-    not being available on the system."""
+    """Raised when git clone fails."""
 
 
 def clone_repository(source: str) -> Path:
-    """
-    Shallow-clone `source` (a URL or local path that git can clone from)
-    into a new temporary directory and return that directory's Path.
-
-    Args:
-        source: anything git clone accepts as a source - a remote URL or
-            a local filesystem path.
-
-    Returns:
-        Path to the temporary directory containing the shallow clone.
-
-    Raises:
-        RepositoryCloneError: if the clone fails for any reason.
-    """
+    """Shallow-clone a Git repository into a temporary directory."""
     destination = Path(tempfile.mkdtemp(prefix="repo_clone_"))
 
-    # --no-local forces git to honor --depth even when `source` happens to be
-    # a local filesystem path (git silently ignores --depth for local clones
-    # otherwise, only emitting a warning). This keeps shallow-clone behavior
-    # identical whether `source` is a remote URL or a local path, which
-    # matters both for correctness and for testability against local fixture
-    # repositories.
+    # --no-local keeps --depth effective for local repository sources too.
     command = [
-        "git", "clone",
-        "--depth", "1",
+        "git",
+        "clone",
+        "--depth",
+        "1",
         "--no-tags",
         "--no-local",
         source,

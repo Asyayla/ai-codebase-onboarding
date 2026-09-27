@@ -1,10 +1,3 @@
-"""
-Unit tests for app/parsing/python_parser.py.
-
-All fixtures are small Python source strings defined inline - no disk
-files, no network, matching the existing test style in this project.
-"""
-
 import textwrap
 
 import pytest
@@ -13,8 +6,7 @@ from app.parsing.python_parser import parse_python_file
 
 
 def _source(text: str) -> str:
-    """Dedent a triple-quoted fixture so indentation in the test file
-    itself doesn't leak into the Python source being parsed."""
+    """Dedent a triple-quoted fixture before parsing."""
     return textwrap.dedent(text).lstrip("\n")
 
 
@@ -84,7 +76,6 @@ def test_class_with_two_methods():
     assert cls.name == "Greeter"
     assert len(cls.methods) == 2
     assert {m.name for m in cls.methods} == {"hello", "goodbye"}
-    # Methods must not leak into top-level functions.
     assert result.functions == []
 
 
@@ -174,8 +165,6 @@ def test_import_alias_is_not_tracked():
 
     assert result.imports[0].module == "numpy"
     assert result.imports[0].imported_names == []
-    # No field on ImportStatement stores the alias at all - this test
-    # simply confirms the module name itself is unaffected by the alias.
 
 
 def test_from_import_alias_is_not_tracked():
@@ -241,20 +230,17 @@ def test_line_numbers_are_one_indexed_and_correct():
 
     result = parse_python_file(source, "lines.py")
 
-    # Line 1: import os
+    # Tree-sitter uses zero-indexed rows; the parser exposes one-indexed lines.
     assert result.imports[0].start_line == 1
     assert result.imports[0].end_line == 1
 
-    # Lines 3-4: def foo(): / pass
     assert result.functions[0].start_line == 3
     assert result.functions[0].end_line == 4
 
-    # Lines 6-8: class Bar: / def method(self): / pass
     cls = result.classes[0]
     assert cls.start_line == 6
     assert cls.end_line == 8
 
-    # Lines 7-8: def method(self): / pass
     method = cls.methods[0]
     assert method.start_line == 7
     assert method.end_line == 8

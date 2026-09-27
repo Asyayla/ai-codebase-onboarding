@@ -1,29 +1,3 @@
-"""
-python_parser.py
-
-Responsibility:
-    Given Python source code as a string, deterministically extract its
-    top-level structure - imports, top-level functions, top-level classes
-    (with their methods) - using tree-sitter's Python grammar.
-
-    This module does NOT read files from disk (source is passed in as a
-    string), does NOT chunk anything, does NOT call an LLM, and does NOT
-    dispatch between languages - it only ever parses Python.
-
-    Line numbers on every returned object are 1-indexed. tree-sitter itself
-    reports 0-indexed rows internally; this module is where that gets
-    normalized, so nothing downstream needs to think about it again.
-
-Contract:
-    parse_python_file(source_code: str, file_path: str) -> ParsedFile
-
-    - Never raises for a parsing failure: unparseable source results in a
-      ParsedFile with empty imports/functions/classes and a message in
-      parse_errors.
-    - Raises TypeError if source_code is not a str (a programming error,
-      not a parsing failure).
-"""
-
 from __future__ import annotations
 
 from typing import List, Optional
@@ -37,8 +11,7 @@ _PYTHON_LANGUAGE = Language(tspython.language())
 
 
 def _line_range(node: Node) -> tuple[int, int]:
-    """Convert a tree-sitter node's 0-indexed rows into 1-indexed
-    (start_line, end_line)."""
+    """Convert tree-sitter's 0-indexed rows to 1-indexed line numbers."""
     return node.start_point.row + 1, node.end_point.row + 1
 
 
@@ -47,13 +20,7 @@ def _node_text(node: Node, source_bytes: bytes) -> str:
 
 
 def _unwrap_decorated(node: Node) -> Node:
-    """If `node` is a decorated_definition (a function or class preceded by
-    one or more @decorator lines), return the actual function_definition or
-    class_definition it wraps. Otherwise return `node` unchanged.
-
-    We deliberately do not extract decorator names/metadata in this
-    milestone - only that a decorated definition is still a real
-    function/class we must not skip."""
+    """Return the underlying function or class from a decorated definition."""
     if node.type == "decorated_definition":
         inner = node.child_by_field_name("definition")
         if inner is not None:
@@ -62,8 +29,7 @@ def _unwrap_decorated(node: Node) -> Node:
 
 
 def _extract_docstring(definition_node: Node, source_bytes: bytes) -> Optional[str]:
-    """A docstring is the string literal forming the first statement in a
-    function/class body, if present."""
+    """Extract the string literal used as the first body statement."""
     body = definition_node.child_by_field_name("body")
     if body is None or len(body.children) == 0:
         return None
@@ -90,11 +56,8 @@ def _is_async(function_node: Node) -> bool:
 
 
 def _extract_function(function_node: Node, source_bytes: bytes) -> FunctionDefinition:
-    # The node passed in here is always the actual function_definition,
-    # already unwrapped from any decorated_definition by the caller. The
-    # returned start_line is the function_definition's own start (not
-    # including any decorator lines) - see the module-level design note
-    # in the accompanying explanation about this choice.
+    # Use the function_definition range rather than the decorator range so
+    # start_line refers to the actual function definition.
     name_node = function_node.child_by_field_name("name")
     start_line, end_line = _line_range(function_node)
 
@@ -129,9 +92,7 @@ def _extract_class(class_node: Node, source_bytes: bytes) -> ClassDefinition:
 
 
 def _extract_imports_from_statement(stmt_node: Node, source_bytes: bytes) -> List[ImportStatement]:
-    """Handles `import x`, `import x.y`, `import x as a`, and
-    `import x, y, z` (each comma-separated module becomes its own
-    ImportStatement, mirroring one real module reference each)."""
+    """Extract module references from an import statement."""
     start_line, end_line = _line_range(stmt_node)
     results: List[ImportStatement] = []
 
@@ -154,8 +115,11 @@ def _extract_imports_from_statement(stmt_node: Node, source_bytes: bytes) -> Lis
     return results
 
 
-def _extract_import_from_statement(stmt_node: Node, source_bytes: bytes) -> Optional[ImportStatement]:
-    """Handles `from x import a, b` and `from x import a as c`."""
+def _extract_import_from_statement(
+    stmt_node: Node,
+    source_bytes: bytes,
+) -> Optional[ImportStatement]:
+    """Extract the module and imported names from a from-import statement."""
     module_node = stmt_node.child_by_field_name("module_name")
     if module_node is None:
         return None
@@ -181,23 +145,7 @@ def _extract_import_from_statement(stmt_node: Node, source_bytes: bytes) -> Opti
 
 
 def parse_python_file(source_code: str, file_path: str) -> ParsedFile:
-    """
-    Extract top-level imports, top-level functions, and top-level classes
-    (with their methods) from Python source code.
-
-    Args:
-        source_code: the full Python source to parse.
-        file_path: a label attached to the result; never read from.
-
-    Returns:
-        A ParsedFile. If source_code cannot be parsed into a usable
-        structure, the returned ParsedFile has empty imports/functions/
-        classes and a message in parse_errors - this function does not
-        raise for parsing failures.
-
-    Raises:
-        TypeError: if source_code is not a str.
-    """
+    """Extract the top-level structure of a Python source file."""
     if not isinstance(source_code, str):
         raise TypeError(f"source_code must be a str, got {type(source_code).__name__}")
 

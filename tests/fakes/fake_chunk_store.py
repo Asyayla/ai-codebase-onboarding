@@ -1,13 +1,3 @@
-"""
-fake_chunk_store.py
-
-An in-memory, offline stand-in for a real ChunkStore, for use in tests.
-Structurally satisfies app.persistence.chunk_store.ChunkStore (no
-inheritance needed - Protocol conformance is structural), with no
-persistence beyond process lifetime, no similarity search, and no
-external dependencies.
-"""
-
 from __future__ import annotations
 
 from typing import Collection, Dict, List, Optional
@@ -18,12 +8,7 @@ from app.persistence.models import StoredChunk
 
 
 class FakeChunkStore:
-    """In-memory ChunkStore for tests.
-
-    Internal structure: repository_id -> chunk_id -> StoredChunk. Exists
-    solely to prove the ChunkStore contract offline - not intended for
-    any production use.
-    """
+    """In-memory ChunkStore implementation for tests."""
 
     def __init__(self) -> None:
         self._chunks_by_repository: Dict[str, Dict[str, StoredChunk]] = {}
@@ -32,9 +17,7 @@ class FakeChunkStore:
         repository_chunks = self._chunks_by_repository.setdefault(repository_id, {})
 
         for chunk in chunks:
-            # Duplicate chunk_ids within this call: later entries simply
-            # overwrite earlier ones as this loop proceeds in order -
-            # last write wins, with no special-casing required.
+            # Later entries with the same chunk_id overwrite earlier ones.
             repository_chunks[chunk.chunk_id] = StoredChunk(
                 chunk_id=chunk.chunk_id,
                 repository_id=repository_id,
@@ -70,12 +53,10 @@ class FakeChunkStore:
     def delete_repository(self, repository_id: str) -> None:
         self._chunks_by_repository.pop(repository_id, None)
 
-    def get_stored_chunk(self, repository_id: str, chunk_id: str) -> Optional[StoredChunk]:
-        """Test-inspection helper - NOT part of the ChunkStore Protocol,
-        which deliberately exposes only content hashes via
-        get_chunk_hashes, not full records. Mirrors how
-        FakeEmbeddingProvider.received_batches is documented as
-        test-inspection state beyond the EmbeddingProvider Protocol.
-        Returns the full StoredChunk for direct field verification in
-        tests, or None if no such chunk is stored."""
+    def get_stored_chunk(
+        self,
+        repository_id: str,
+        chunk_id: str,
+    ) -> Optional[StoredChunk]:
+        """Return a stored chunk for test inspection."""
         return self._chunks_by_repository.get(repository_id, {}).get(chunk_id)
