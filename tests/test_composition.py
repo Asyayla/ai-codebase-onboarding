@@ -1,5 +1,7 @@
 from __future__ import annotations
 from openai import OpenAIError
+from app.synthesis.answer_service import AnswerService
+from tests.fakes.fake_llm_provider import FakeLLMProvider
 
 import importlib
 import subprocess
@@ -78,3 +80,32 @@ def test_default_embedding_provider_reads_config_from_environment_not_hardcoded(
             chunk_store=FakeChunkStore(),
             vector_store=FakeVectorStore(),
         )
+
+
+def test_build_answer_service_does_not_call_the_production_query_service_factory_when_injected(
+    monkeypatch,
+):
+    injected_query_service = composition.build_repository_query_service(
+        embedding_provider=FakeEmbeddingProvider(),
+        chunk_store=FakeChunkStore(),
+        vector_store=FakeVectorStore(),
+    )
+    injected_llm_provider = FakeLLMProvider()
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError(
+            "build_repository_query_service() must not be called "
+            "when query_service is explicitly injected"
+        )
+
+    monkeypatch.setattr(
+        "app.composition.build_repository_query_service",
+        _fail_if_called,
+    )
+
+    service = composition.build_answer_service(
+        query_service=injected_query_service,
+        llm_provider=injected_llm_provider,
+    )
+
+    assert isinstance(service, AnswerService)

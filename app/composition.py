@@ -9,6 +9,9 @@ from app.persistence.postgres_chunk_store import PostgresChunkStore
 from app.pipeline.repository_query_service import RepositoryQueryService
 from app.retrieval.postgres_vector_store import PostgresVectorStore
 from app.retrieval.vector_store import VectorStore
+from app.synthesis.answer_service import AnswerService
+from app.synthesis.llm_provider import LLMProvider
+from app.synthesis.openai_llm_provider import OpenAILLMProvider
 
 DEFAULT_BATCH_SIZE = 16
 
@@ -20,23 +23,22 @@ def build_repository_query_service(
     vector_store: Optional[VectorStore] = None,
     batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> RepositoryQueryService:
-    """Compose the production RepositoryQueryService from real implementations.
-
-    Each dependency defaults to its production implementation - reading
-    configuration (OPENAI_API_KEY, DATABASE_URL) from the environment only
-    when it is actually constructed, never at import time - and can be
-    overridden, e.g. with fakes in tests or a future alternative provider.
-    """
     if embedding_provider is None:
         embedding_provider = OpenAIEmbeddingProvider()
     if chunk_store is None:
         chunk_store = PostgresChunkStore()
     if vector_store is None:
         vector_store = PostgresVectorStore()
+    return RepositoryQueryService(embedding_provider, chunk_store, vector_store, batch_size)
 
-    return RepositoryQueryService(
-        embedding_provider,
-        chunk_store,
-        vector_store,
-        batch_size,
-    )
+
+def build_answer_service(
+    *,
+    query_service: Optional[RepositoryQueryService] = None,
+    llm_provider: Optional[LLMProvider] = None,
+) -> AnswerService:
+    if query_service is None:
+        query_service = build_repository_query_service()
+    if llm_provider is None:
+        llm_provider = OpenAILLMProvider()
+    return AnswerService(query_service, llm_provider)
