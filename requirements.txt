@@ -2,3 +2,5 @@ tree-sitter==0.26.0
 tree-sitter-python==0.25.0
 pytest==9.1.1
 openai==3.22.1
+fastapi==0.142.2
+uvicorn==0.54.0
