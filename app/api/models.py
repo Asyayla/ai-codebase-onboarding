@@ -28,7 +28,7 @@ class IndexResponse(BaseModel):
 
 class AskRequest(BaseModel):
     question: str
-    top_k: int = Field(default=5, gt=0)
+    top_k: int = Field(default=5, gt=0, le=50)
 
     @field_validator("question")
     @classmethod

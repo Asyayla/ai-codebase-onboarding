@@ -235,3 +235,18 @@ def test_routes_work_with_injected_fakes_without_openai_api_key_or_database_url(
 
     assert index_response.status_code == 200
     assert ask_response.status_code == 200
+
+
+def test_ask_endpoint_rejects_top_k_above_maximum():
+    fake_answer_service = _FakeAnswerService(
+        AnswerResult(answer="the answer", sources=[])
+    )
+    client = _client_with(answer_service=fake_answer_service)
+
+    response = client.post(
+        "/repositories/repo-42/ask",
+        json={"question": "question", "top_k": 51},
+    )
+
+    assert response.status_code == 422
+    assert fake_answer_service.calls == []
