@@ -44,7 +44,7 @@ def index_repository(
     )
 
 
-@router.post("/repositories/{repository_id}/ask", response_model=AskResponse)
+@router.post("/repositories/{repository_id:path}/ask", response_model=AskResponse)
 def ask_repository(
     repository_id: str,
     request: AskRequest,

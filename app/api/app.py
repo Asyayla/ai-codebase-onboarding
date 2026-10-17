@@ -8,7 +8,7 @@ from app.api.routes import get_answer_service, get_query_service, router
 from app.composition import build_answer_service, build_repository_query_service
 from app.pipeline.repository_query_service import RepositoryQueryService
 from app.synthesis.answer_service import AnswerService
-
+from app.api.errors import register_error_handlers
 
 def create_app(
     *,
@@ -17,6 +17,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI()
     app.include_router(router)
+    register_error_handlers(app)
 
     app.state.query_service = query_service
     app.state.answer_service = answer_service
