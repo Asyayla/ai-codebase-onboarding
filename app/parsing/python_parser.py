@@ -16,7 +16,10 @@ def _line_range(node: Node) -> tuple[int, int]:
 
 
 def _node_text(node: Node, source_bytes: bytes) -> str:
-    return source_bytes[node.start_byte:node.end_byte].decode("utf-8")
+    text = node.text
+    if text is None:
+        return ""
+    return text.decode("utf-8")
 
 
 def _unwrap_decorated(node: Node) -> Node:
@@ -28,8 +31,13 @@ def _unwrap_decorated(node: Node) -> Node:
     return node
 
 
-def _extract_docstring(definition_node: Node, source_bytes: bytes) -> Optional[str]:
+def _extract_docstring(
+    definition_node: Node,
+    source_bytes: bytes,
+) -> Optional[str]:
     """Extract the string literal used as the first body statement."""
+    import ast
+
     body = definition_node.child_by_field_name("body")
     if body is None or len(body.children) == 0:
         return None
@@ -44,11 +52,16 @@ def _extract_docstring(definition_node: Node, source_bytes: bytes) -> Optional[s
     if string_node.type != "string":
         return None
 
-    for child in string_node.children:
-        if child.type == "string_content":
-            return _node_text(child, source_bytes).strip()
+    text = string_node.text
+    if text is None:
+        return None
 
-    return None
+    try:
+        value = ast.literal_eval(text.decode("utf-8"))
+    except (SyntaxError, ValueError):
+        return None
+
+    return value.strip() if isinstance(value, str) else None
 
 
 def _is_async(function_node: Node) -> bool:
