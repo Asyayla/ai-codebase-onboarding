@@ -7,11 +7,11 @@ An AI-powered codebase onboarding assistant that indexes Git repositories, retri
 - **Git repository ingestion:** Clones a Git repository into a temporary directory for indexing.
 - **Python code parsing:** Extracts structured information from Python source files.
 - **Code chunking:** Splits source code into structured chunks for retrieval.
-- **Embeddings:** Generates vector embeddings using OpenAI's embedding API.
+- **Embeddings:** Generates vector embeddings using Gemini's `gemini-embedding-001` model.
 - **Persistent storage:** Stores code chunks and embeddings in PostgreSQL with pgvector.
 - **Repository indexing:** Tracks new, changed, unchanged, and removed chunks.
 - **Semantic retrieval:** Retrieves relevant code chunks for a question.
-- **Answer synthesis:** Uses an LLM to generate answers grounded in retrieved code.
+- **Answer synthesis:** Uses Gemini `gemini-flash-lite-latest` by default to generate answers grounded in retrieved code.
 - **Source references:** Returns file paths, chunk identifiers, relevance scores, and ranks with answers.
 - **HTTP API:** Exposes repository indexing and question-answering endpoints through FastAPI.
 
@@ -56,18 +56,19 @@ The application is organized into separate components:
 - PostgreSQL
 - pgvector
 - Tree-sitter
-- OpenAI API
+- Google Gemini API (default embedding and answer-generation provider)
+- OpenAI API (optional alternative providers)
 - pytest
 
 ## Prerequisites
 
 Before running the application, install:
 
-- Python 3.11 or a compatible Python version
+- Python 3.13 (the version the project is developed and tested with)
 - Git
 - PostgreSQL
 - The pgvector PostgreSQL extension
-- An OpenAI API key
+- A Google Gemini API key
 
 The project dependencies are pinned in `requirements.txt`.
 
@@ -128,23 +129,27 @@ python -c "from app.persistence.database import Base, get_engine; import app.per
 
 Run this command after setting `DATABASE_URL` and enabling pgvector.
 
-### 5. Configure the OpenAI API key
+### 5. Configure the Gemini API key
 
 ```bash
-export OPENAI_API_KEY="your_openai_api_key"
+export GEMINI_API_KEY="your_gemini_api_key"
 ```
 
-The embedding and answer-generation providers use OpenAI's Python client. The embedding provider uses `text-embedding-3-small`; the answer-generation provider has a default model configured in the source code.
+The default embedding provider uses Google's `gemini-embedding-001` model with 1536-dimensional vectors. Repository code chunks use the `RETRIEVAL_DOCUMENT` task type, while search queries use `CODE_RETRIEVAL_QUERY`. Answer generation uses `gemini-flash-lite-latest` by default. OpenAI providers remain available as optional alternatives.
 
 Keep API keys and database credentials private. Do not commit `.env` files or secrets to version control.
+
+**Embedding migration note:** Gemini and OpenAI embeddings use different vector spaces, even when their dimensions match. If you switch embedding providers for a repository that has already been indexed, re-index its code chunks before relying on semantic search.
 
 ## Running the API
 
 Start the FastAPI application from the project root:
 
 ```bash
-uvicorn app.api.app:create_app --factory --reload
+uvicorn app.api.app:create_app --factory --reload --reload-dir app
 ```
+
+`--reload-dir app` limits auto-reload to the application code. Without it, changes inside `.venv` can restart the server in the middle of a long request such as repository indexing.
 
 The API will normally be available at:
 
@@ -181,6 +186,8 @@ Use the returned `repository_id` when asking questions.
 
 `POST /repositories/{repository_id}/ask`
 
+The `repository_id` is the repository URL returned by the index endpoint (for example `https://github.com/OWNER/REPOSITORY`). In `curl`, URL-encode it. In Swagger UI, enter it as-is, without quotes.
+
 Request:
 
 ```json
@@ -193,7 +200,7 @@ Request:
 Example:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/repositories/REPOSITORY_ID/ask" \
+curl -X POST "http://127.0.0.1:8000/repositories/https%3A%2F%2Fgithub.com%2FOWNER%2FREPOSITORY/ask" \
   -H "Content-Type: application/json" \
   -d '{"question":"How does repository indexing work?","top_k":5}'
 ```
@@ -201,6 +208,28 @@ curl -X POST "http://127.0.0.1:8000/repositories/REPOSITORY_ID/ask" \
 `top_k` is optional, defaults to `5`, and must be between `1` and `50`.
 
 The response contains the generated answer and a list of source references. Each source includes its file path, chunk ID, score, and rank.
+
+### Error responses
+
+If the language model service is temporarily unavailable (for example, Gemini returns 503 or rate-limits the request), the API responds with `503` and a clear message instead of an unhandled server error. If the model service rejects a request, the API responds with `502`.
+
+## Example: asking the assistant about its own codebase
+
+The project was indexed with itself as the input repository. The answers below are abridged from real responses; each response also includes ranked source references.
+
+**Question:** `How does the repository indexer decide whether a chunk is new, changed or unchanged?`
+
+> The indexer computes a `chunk_id` from the repository, file path, symbol type, symbol name and line range, and a `content_hash` from the chunk content. A chunk whose `chunk_id` is not stored is **new**; one whose stored hash equals the current hash is **unchanged**; one whose stored hash differs is **changed**. Only new and changed chunks are embedded.
+
+Top source: `app/pipeline/repository_indexer.py`
+
+**Question:** `What does AnswerService return when retrieval finds no chunks, and does it call the LLM?`
+
+> It returns `AnswerResult(answer=NO_CONTEXT_ANSWER, sources=[])` and does not call the LLM; it returns early before `generate_answer` is invoked.
+
+Top source: `app/synthesis/answer_service.py`
+
+When the retrieved code does not contain the answer, the assistant says the context is insufficient instead of guessing.
 
 ## Testing
 
@@ -248,7 +277,7 @@ pytest -q
 
 The project includes repository ingestion, Python parsing and chunking, embedding generation, PostgreSQL persistence, vector retrieval, answer synthesis, and a FastAPI interface.
 
-The automated test suite currently passes **273 tests**, including 25 PostgreSQL integration tests, in the development environment.
+The automated test suite currently passes **290 tests**, including PostgreSQL integration tests, in the development environment.
 
 ## Security Considerations
 
