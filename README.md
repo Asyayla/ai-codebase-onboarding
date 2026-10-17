@@ -77,7 +77,7 @@ The project dependencies are pinned in `requirements.txt`.
 ### 1. Clone the project
 
 ```bash
-git clone <YOUR_PROJECT_URL>
+git clone https://github.com/Asyayla/ai-codebase-onboarding.git
 cd ai-codebase-onboarding
 ```
 
@@ -278,6 +278,12 @@ pytest -q
 The project includes repository ingestion, Python parsing and chunking, embedding generation, PostgreSQL persistence, vector retrieval, answer synthesis, and a FastAPI interface.
 
 The automated test suite currently passes **290 tests**, including PostgreSQL integration tests, in the development environment.
+
+## Limitations and Future Work
+
+- Only Python source files are parsed and indexed.
+- Retrieval quality depends on how a question is phrased; hybrid (keyword + vector) search and reranking are natural next steps.
+- The API has no authentication or rate limiting and is intended for local development.
 
 ## Security Considerations
 
