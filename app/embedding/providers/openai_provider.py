@@ -38,3 +38,13 @@ class OpenAIEmbeddingProvider:
 
         ordered = sorted(response.data, key=lambda item: item.index)
         return [item.embedding for item in ordered]
+
+    def embed_query(self, query: str) -> List[float]:
+        """Embed one search query using the OpenAI embedding model."""
+        vectors = self.embed_batch([query])
+        if len(vectors) != 1:
+            raise ValueError(
+                f"expected exactly one embedding vector for one query, "
+                f"got {len(vectors)}"
+            )
+        return vectors[0]

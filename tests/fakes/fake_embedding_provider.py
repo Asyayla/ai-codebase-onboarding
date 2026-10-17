@@ -52,6 +52,10 @@ class FakeEmbeddingProvider:
         """Return batches received for test inspection."""
         return self._received_batches
 
+    def embed_query(self, query: str) -> List[float]:
+        """Use the deterministic fake for a single query."""
+        return self.embed_batch([query])[0]
+
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         # Store a copy so later mutations by the caller do not affect history.
         self._received_batches.append(list(texts))

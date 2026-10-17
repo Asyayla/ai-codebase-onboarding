@@ -31,15 +31,7 @@ class Retriever:
         if top_k <= 0:
             raise ValueError(f"top_k must be a positive integer, got {top_k}")
 
-        vectors = self._embedding_provider.embed_batch([query])
-
-        if len(vectors) != 1:
-            raise ValueError(
-                f"expected exactly one embedding vector for one query, "
-                f"got {len(vectors)}"
-            )
-
-        query_embedding = vectors[0]
+        query_embedding = self._embedding_provider.embed_query(query)
         expected_dimensions = self._embedding_provider.dimensions
 
         if len(query_embedding) != expected_dimensions:

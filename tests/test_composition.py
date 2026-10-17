@@ -1,5 +1,4 @@
 from __future__ import annotations
-from openai import OpenAIError
 from app.synthesis.answer_service import AnswerService
 from tests.fakes.fake_llm_provider import FakeLLMProvider
 
@@ -64,22 +63,60 @@ def test_composition_shares_one_embedding_provider_between_indexing_and_retrieva
 
 
 def test_importing_the_module_requires_no_environment_configuration(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("DATABASE_URL", raising=False)
 
     importlib.reload(composition)
 
 
-def test_default_embedding_provider_reads_config_from_environment_not_hardcoded(
-    monkeypatch,
-):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+def test_default_embedding_provider_uses_gemini_factory(monkeypatch):
+    provider = FakeEmbeddingProvider()
+    calls = []
 
-    with pytest.raises(OpenAIError, match="api_key"):
-        composition.build_repository_query_service(
-            chunk_store=FakeChunkStore(),
-            vector_store=FakeVectorStore(),
-        )
+    def fake_gemini_provider():
+        calls.append(True)
+        return provider
+
+    monkeypatch.setattr(
+        composition,
+        "GeminiEmbeddingProvider",
+        fake_gemini_provider,
+    )
+
+    service = composition.build_repository_query_service(
+        chunk_store=FakeChunkStore(),
+        vector_store=FakeVectorStore(),
+    )
+
+    assert isinstance(service, RepositoryQueryService)
+    assert calls == [True]
+
+
+def test_default_answer_provider_uses_gemini_factory(monkeypatch):
+    query_service = composition.build_repository_query_service(
+        embedding_provider=FakeEmbeddingProvider(),
+        chunk_store=FakeChunkStore(),
+        vector_store=FakeVectorStore(),
+    )
+    provider = FakeLLMProvider()
+    calls = []
+
+    def fake_gemini_provider():
+        calls.append(True)
+        return provider
+
+    monkeypatch.setattr(
+        composition,
+        "GeminiLLMProvider",
+        fake_gemini_provider,
+    )
+
+    service = composition.build_answer_service(query_service=query_service)
+
+    assert isinstance(service, AnswerService)
+    assert calls == [True]
+
 
 
 def test_build_answer_service_does_not_call_the_production_query_service_factory_when_injected(

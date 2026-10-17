@@ -41,6 +41,15 @@ class _RecordingEmbeddingProvider:
             raise self._raise_error
         return self._vectors_to_return
 
+    def embed_query(self, query: str) -> List[float]:
+        vectors = self.embed_batch([query])
+        if len(vectors) != 1:
+            raise ValueError(
+                f"expected exactly one embedding vector for one query, "
+                f"got {len(vectors)}"
+            )
+        return vectors[0]
+
 
 class _RecordingVectorStore:
     """Test-only VectorStore double."""
